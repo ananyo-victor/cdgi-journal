@@ -5,7 +5,17 @@ import fetchuser from '../../middleware/fetchuser.js';
 
 const router = express.Router();
 
-const storage = multer.memoryStorage();
+// const storage = multer.memoryStorage();
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, './files')
+    },
+    filename: function (req, file, cb) {
+      const uniqueSuffix = Date.now()
+      cb(null, uniqueSuffix + file.originalname)
+    }
+  })
 const upload = multer({ storage: storage });
 
 //POST route to upload data into database
@@ -17,16 +27,16 @@ router.post('/upload', fetchuser, upload.fields([{ name: 'journalImg' }, { name:
         let journalPdfArray = [];
 
         if (req.files['journalImg']) {
-            journalImgArray = req.files['journalImg'].map(file => file.buffer);
+            journalImgArray = req.files['journalImg'].map(file => file.path);
         }
-
+        // console.log(journalImgArray);
+        
         if (req.files['journalPdf']) {
-            journalPdfArray = req.files['journalPdf'].map(file => file.buffer);
+            journalPdfArray = req.files['journalPdf'].map(file => file.path);
         }
-
+        // console.log(journalPdfArray);
+        
         const userId = req.user.id;
-
-
         const newJournal = new JournalModel({
             userId,
             journalName,
@@ -36,7 +46,8 @@ router.post('/upload', fetchuser, upload.fields([{ name: 'journalImg' }, { name:
         });
 
         await newJournal.save();
-
+        res.send({journalImgArray,journalPdfArray});
+        
         res.status(201).send({ message: "Journal entry created successfully" });
     } catch (error) {
         console.error("Error creating journal entry:", error);
@@ -52,7 +63,7 @@ router.get('/', fetchuser, async (req, res) => {
         console.error("Error fetching journal entries:", error);
         res.status(500).send({ message: "Error fetching journal entries" });
     }
-});
+}); 
 // GET route to access data from the name
 router.get('/:name', fetchuser, async (req, res) => {
     const { name } = req.params;
@@ -81,14 +92,14 @@ router.put('/:name', fetchuser, async (req, res) => {
     if (req.files && req.files['journalImg']) {
         // Iterate over each uploaded image
         for (const file of req.files['journalImg']) {
-            journalImg2.push(file.buffer);
+            journalImg2.push(file.path);
         }
     }
 
     if (req.files && req.files['journalPdf']) {
         // Iterate over each uploaded PDF
         for (const file of req.files['journalPdf']) {
-            journalPdf2.push(file.buffer);
+            journalPdf2.push(file.path);
         }
     }
 

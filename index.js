@@ -1,4 +1,5 @@
 import express from "express";
+import cors from 'cors';
 import setupDB from "./db/db.js";
 import login_router from "./user/login_page/login_register.control.js";
 import journal_router from "./user/journal/journal.control.js";
@@ -9,6 +10,7 @@ const app = express();
 setupDB();
 
 app.use(express.json());
+app.use(cors());
 
 app.use("/auth", login_router);
 app.use("/journal", journal_router);

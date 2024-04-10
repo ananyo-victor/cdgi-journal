@@ -56,7 +56,7 @@ router.post("/login", async (req, res) => {
         }
     };
     const authToken = jwt.sign(data, JWT_secret);
-    // res.json(authToken);
+    res.json(authToken);
     return res.status(200).send({ user });
 });
 
