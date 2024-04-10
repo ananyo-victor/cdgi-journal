@@ -83,32 +83,14 @@ router.get('/:name', fetchuser, async (req, res) => {
 });
 
 // PUT route to update a journal entry
-router.put('/:name', fetchuser, async (req, res) => {
+router.put('/journalText/:name', fetchuser, async (req, res) => {
     const { name } = req.params;
     const { journalText } = req.body;
-    let journalImg2 = [];
-    let journalPdf2 = [];
-
-    if (req.files && req.files['journalImg']) {
-        // Iterate over each uploaded image
-        for (const file of req.files['journalImg']) {
-            journalImg2.push(file.path);
-        }
-    }
-
-    if (req.files && req.files['journalPdf']) {
-        // Iterate over each uploaded PDF
-        for (const file of req.files['journalPdf']) {
-            journalPdf2.push(file.path);
-        }
-    }
-
+    
     try {
         const journal = await JournalModel.findOneAndUpdate({ journalName: name }, {
             $set: {
                 journalText: journalText, // Update journalText
-                // Add new images and PDFs if available
-                $addToSet: { journalImg: { $each: journalImg2 }, journalPdf: { $each: journalPdf2 } }
             }
         });
 
@@ -119,10 +101,53 @@ router.put('/:name', fetchuser, async (req, res) => {
         if (journalText === undefined || journalText === null) {
             return res.status(400).send({ message: "journalText is missing" });
         }
-        console.log(journal.journalText);
         res.status(200).send({ message: "Journal entry updated successfully" });
     } catch (error) {
-        console.error("Error updating journal entry:", error);
+        res.status(500).send({ message: "Error updating journal entry" });
+    }
+});
+
+
+router.put('/journalImgAndPdf/:name', upload.fields([{ name: 'journalImg' }, { name: 'journalPdf' }]), fetchuser, async (req, res) => {
+    const { name } = req.params;
+    let journalImg2 = [];
+    let journalPdf2 = [];
+    console.log(req.files['journalImg']);
+    console.log(req.files['journalPdf']);
+    if (req.files && req.files['journalImg']) {
+        // Iterate over each uploaded image
+        for (const file of req.files['journalImg']) {
+            journalImg2.push(file.path);
+            console.log(file);
+        }
+    }else{
+        console.log("no file");
+    }
+
+    if (req.files && req.files['journalPdf']) {
+        // Iterate over each uploaded PDF
+        for (const file of req.files['journalPdf']) {
+            journalPdf2.push(file.path);
+            console.log(file);
+        }
+    }else{
+        console.log("no pdf");
+    }
+
+    try {
+        const journal = await JournalModel.findOneAndUpdate({ journalName: name }, {
+            $set: {
+                journalImg: journalImg2,
+                journalPdf: journalPdf2
+            }
+        });
+
+        if (!journal) {
+            return res.status(404).send({ message: "Journal entry not found" });
+        }
+
+        res.status(200).send({ message: "Journal entry updated successfully" });
+    } catch (error) {
         res.status(500).send({ message: "Error updating journal entry" });
     }
 });
@@ -168,17 +193,17 @@ router.put('/:name', fetchuser, async (req, res) => {
 // });
 
 //DELETE route to delete all the data fecthed by the name
-// router.delete('/:name', fetchuser, async (req, res) => {
-//     const { name } = req.params;
+router.delete('/:name', fetchuser, async (req, res) => {
+    const { name } = req.params;
 
-//     try {
-//         await JournalModel.findOneAndDelete({ journalName: name });
-//         res.status(200).send({ message: "Journal entry deleted successfully" });
-//     } catch (error) {
-//         console.error("Error deleting journal entry:", error);
-//         res.status(500).send({ message: "Error deleting journal entry" });
-//     }
-// });
+    try {
+        await JournalModel.findOneAndDelete({ journalName: name });
+        res.status(200).send({ message: "Journal entry deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting journal entry:", error);
+        res.status(500).send({ message: "Error deleting journal entry" });
+    }
+});
 
 //DELETE route to delete the specific data from the id
 // router.delete('/:id', fetchuser, async (req, res) => {
@@ -193,8 +218,10 @@ router.put('/:name', fetchuser, async (req, res) => {
 //     }
 // });
 
-router.delete('/:name/:imageIndex/:pdfIndex', fetchuser, async (req, res) => {
-    const { name, imageIndex, pdfIndex } = req.params;
+// DELETE route to delete specific image using the index 
+
+router.delete('/journalImg/:name/:imageIndex', fetchuser, async (req, res) => {
+    const { name, imageIndex} = req.params;
 
     try {
         const journal = await JournalModel.findOne({ journalName: name });
@@ -205,23 +232,64 @@ router.delete('/:name/:imageIndex/:pdfIndex', fetchuser, async (req, res) => {
 
         // Remove the image at the specified index
         if (imageIndex !== undefined && imageIndex !== null) {
-            journal.journalImg.splice(imageIndex, 1);
-        }
-
-        // Remove the PDF at the specified index
-        if (pdfIndex !== undefined && pdfIndex !== null) {
-            journal.journalPdf.splice(pdfIndex, 1);
+            journal.journalImg.splice((imageIndex-1), 1);
         }
         
         await journal.save();
 
-        res.status(200).send({ message: "Image or PDF deleted successfully" });
+        res.status(200).send({ message: "Image deleted successfully" });
     } catch (error) {
-        console.error("Error deleting image or PDF:", error);
-        res.status(500).send({ message: "Error deleting image or PDF" });
+        console.error("Error deleting image:", error);
+        res.status(500).send({ message: "Error deleting image" });
     }
 });
 
+// DELETE route to delete specific pdf using the index
+router.delete('/journalPdf/:name/:pdfIndex', fetchuser, async (req, res) => {
+    const { name, pdfIndex } = req.params;
+
+    try {
+        const journal = await JournalModel.findOne({ journalName: name });
+
+        if (!journal) {
+            return res.status(404).send({ message: "Journal entry not found" });
+        }
+
+        // Remove the PDF at the specified index
+        if (pdfIndex !== undefined && pdfIndex !== null) {
+            journal.journalPdf.splice((pdfIndex-1), 1);
+        }
+        
+        await journal.save();
+
+        res.status(200).send({ message: "PDF deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting PDF:", error);
+        res.status(500).send({ message: "Error deleting PDF" });
+    }
+});
+
+// DELETE route to delete the text
+router.delete('/journalText/:name', fetchuser, async (req, res) => {
+    const { name} = req.params;
+
+    try {
+        const journal = await JournalModel.findOne({ journalName: name });
+
+        if (!journal) {
+            return res.status(404).send({ message: "Journal entry not found" });
+        }
+
+        journal.journalText = '';
+        
+        await journal.save();
+
+        res.status(200).send({ message: "Text deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting Text:", error);
+        res.status(500).send({ message: "Error deleting Text" });
+    }
+});
 
 
 export default router;
