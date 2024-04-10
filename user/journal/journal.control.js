@@ -27,12 +27,12 @@ router.post('/upload', fetchuser, upload.fields([{ name: 'journalImg' }, { name:
         let journalPdfArray = [];
 
         if (req.files['journalImg']) {
-            journalImgArray = req.files['journalImg'].map(file => file.path);
+            journalImgArray = req.files['journalImg'].map(file => ({name : file.originalname}));
         }
         // console.log(journalImgArray);
         
         if (req.files['journalPdf']) {
-            journalPdfArray = req.files['journalPdf'].map(file => file.path);
+            journalPdfArray = req.files['journalPdf'].map(file => ({name : file.originalname}));
         }
         // console.log(journalPdfArray);
         
@@ -46,7 +46,6 @@ router.post('/upload', fetchuser, upload.fields([{ name: 'journalImg' }, { name:
         });
 
         await newJournal.save();
-        res.send({journalImgArray,journalPdfArray});
         
         res.status(201).send({ message: "Journal entry created successfully" });
     } catch (error) {
@@ -65,7 +64,7 @@ router.get('/', fetchuser, async (req, res) => {
     }
 }); 
 // GET route to access data from the name
-router.get('/:name', fetchuser, async (req, res) => {
+router.get('/:name', async (req, res) => {
     const { name } = req.params;
 
     try {
@@ -117,7 +116,7 @@ router.put('/journalImgAndPdf/:name', upload.fields([{ name: 'journalImg' }, { n
     if (req.files && req.files['journalImg']) {
         // Iterate over each uploaded image
         for (const file of req.files['journalImg']) {
-            journalImg2.push(file.path);
+            journalImg2.push({name : file.originalname});
             console.log(file);
         }
     }else{
@@ -127,11 +126,11 @@ router.put('/journalImgAndPdf/:name', upload.fields([{ name: 'journalImg' }, { n
     if (req.files && req.files['journalPdf']) {
         // Iterate over each uploaded PDF
         for (const file of req.files['journalPdf']) {
-            journalPdf2.push(file.path);
+            journalPdf2.push({name : file.originalname});
             console.log(file);
         }
     }else{
-        console.log("no pdf");
+        console.log("no pdf");  
     }
 
     try {
