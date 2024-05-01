@@ -54,7 +54,7 @@ router.post('/upload', fetchuser, upload.fields([{ name: 'journalImg' }, { name:
     }
 });
 //GET route to access all the data
-router.get('/', async (req, res) => {
+router.get('/', fetchuser, async (req, res) => {
     try {
         const journals = await JournalModel.findOne({ userId: req.user.id });
         res.status(200).send(journals);
