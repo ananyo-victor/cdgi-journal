@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const journalSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'UserModel', required: true },
-    journalName: { type: String, require: true },
+    journalName: { type: String, require: true, unique: true },
     journalText: { type: String },
     journalImg: [{ name: String }],
     journalPdf: [{ name: String }],
