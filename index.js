@@ -6,10 +6,8 @@ import journal_router from "./user/journal/journal.control.js";
 const port = process.env.PORT || 3001;
 const app = express();
 
-
-setupDB();
-
 app.use(express.json());
+setupDB();  
 app.use(cors());
 
 app.use("/auth", login_router);
