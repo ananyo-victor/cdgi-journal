@@ -90,6 +90,7 @@ router.put('/journalText/:name', fetchuser, async (req, res) => {
         const journal = await JournalModel.findOneAndUpdate({ journalName: name }, {
             $set: {
                 journalText: journalText, // Update journalText
+                textUpdatedAt : Date.now
             }
         });
 
@@ -137,7 +138,8 @@ router.put('/journalImgAndPdf/:name', upload.fields([{ name: 'journalImg' }, { n
         const journal = await JournalModel.findOneAndUpdate({ journalName: name }, {
             $set: {
                 journalImg: journalImg2,
-                journalPdf: journalPdf2
+                journalPdf: journalPdf2,
+                imgOrPdfUdatedAt: Date.now
             }
         });
 

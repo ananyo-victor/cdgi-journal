@@ -6,7 +6,9 @@ const journalSchema = new mongoose.Schema({
     journalText: { type: String },
     journalImg: [{ name: String }],
     journalPdf: [{ name: String }],
-    achievedAt: { type: Date, default: Date.now }
+    achievedAt: { type: Date, default: Date.now },
+    textUpdatedAt: {type: Date},
+    imgOrPdfUdatedAt: {type: Date}
 });
 
 const JournalModel = mongoose.model("Journal", journalSchema);
