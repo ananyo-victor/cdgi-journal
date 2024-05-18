@@ -2,67 +2,89 @@ import express from 'express';
 import multer from 'multer';
 import JournalModel from './journal.schema.js';
 import fetchuser from '../../middleware/fetchuser.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
-const storage = multer.memoryStorage();
+// const storage = multer.memoryStorage();
 
-// const storage = multer.diskStorage({
-//     destination: function (req, file, cb) {
-//       cb(null, './files')
-//     },
-//     filename: function (req, file, cb) {
-//       const uniqueSuffix = Date.now()
-//       cb(null, uniqueSuffix + file.originalname)
-//     }
-//   })
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, './files')
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = uuidv4()
+        cb(null, `${uniqueSuffix}-${file.originalname.split(" ").join("_")}`)
+    }
+})
+
 const upload = multer({ storage: storage });
 
 //POST route to upload data into database
 router.post('/upload', fetchuser, upload.fields([{ name: 'journalImg' }, { name: 'journalPdf' }]), async (req, res) => {
-    try {
-
+    try { 
         const { journalName, journalText } = req.body;
         let journalImgArray = [];
         let journalPdfArray = [];
 
-        if (req.files['journalImg']) {
-            journalImgArray = req.files['journalImg'].map(file => ({name : file.originalname}));
-        }
-        // console.log(journalImgArray);
-        
-        if (req.files['journalPdf']) {
-            journalPdfArray = req.files['journalPdf'].map(file => ({name : file.originalname}));
-        }
-        // console.log(journalPdfArray);
-        
-        const userId = req.user.id;
-        const newJournal = new JournalModel({
-            userId,
-            journalName,
-            journalText,
-            journalImg: journalImgArray,
-            journalPdf: journalPdfArray
-        });
+        // Check if journalName already exists in the database
+        const existingJournal = await JournalModel.findOne({ journalName });
 
-        await newJournal.save();
-        
-        res.status(201).send({ message: "Journal entry created successfully" });
+        if (existingJournal) {
+            // If journalName exists, update journalText, journalImg, and journalPdf
+            existingJournal.journalText = journalText;
+
+            if (req.files['journalImg']) {
+                const imgFiles = req.files['journalImg'].map(file => ({ name: `https://cdgi-journal.onrender.com/${file.originalname.split(" ").join("_")}` }));
+                existingJournal.journalImg = existingJournal.journalImg.concat(imgFiles);
+            }
+
+            if (req.files['journalPdf']) {
+                const pdfFiles = req.files['journalPdf'].map(file => ({ name: `https://cdgi-journal.onrender.com/${file.originalname.split(" ").join("_")}` }));
+                existingJournal.journalPdf = existingJournal.journalPdf.concat(pdfFiles);
+            }
+
+            await existingJournal.save();
+            res.status(200).send({ message: "Journal entry updated successfully" });
+        } else {
+            // If journalName does not exist, create a new entry
+            if (req.files['journalImg']) {
+                journalImgArray = req.files['journalImg'].map(file => ({ name: `https://cdgi-journal.onrender.com/${file.originalname.split(" ").join("_")}` }));
+            }
+
+            if (req.files['journalPdf']) {
+                journalPdfArray = req.files['journalPdf'].map(file => ({ name: `https://cdgi-journal.onrender.com/${file.originalname.split(" ").join("_")}` }));
+            }
+
+            const userId = req.user.id;
+            const newJournal = new JournalModel({
+                userId,
+                journalName,
+                journalText,
+                journalImg: journalImgArray,
+                journalPdf: journalPdfArray
+            });
+
+            await newJournal.save();
+            res.status(201).send({ message: "Journal entry created successfully" });
+        }
     } catch (error) {
-        console.error("Error creating journal entry:", error);
-        res.status(500).send({ message: "Error creating journal entry" });
+        console.error("Error creating or updating journal entry:", error);
+        res.status(500).send({ message: "Error creating or updating journal entry" });
     }
 });
+
+
 //GET route to access all the data
 router.get('/', fetchuser, async (req, res) => {
     try {
         const journals = await JournalModel.find({ userId: req.user.id });
-        res.status(200).send(journals); 
+        res.status(200).send({status : true, message : "All data list", data : journals});
     } catch (error) {
         console.error("Error fetching journal entries:", error);
         res.status(500).send({ message: "Error fetching journal entries" });
-    } 
-}); 
+    }
+});
 // GET route to access data from the name
 router.get('/:name', async (req, res) => {
     const { name } = req.params;
@@ -85,12 +107,12 @@ router.get('/:name', async (req, res) => {
 router.put('/journalText/:name', fetchuser, async (req, res) => {
     const { name } = req.params;
     const { journalText } = req.body;
-    
+
     try {
         const journal = await JournalModel.findOneAndUpdate({ journalName: name }, {
             $set: {
                 journalText: journalText, // Update journalText
-                textUpdatedAt : Date.now
+                textUpdatedAt: Date.now()
             }
         });
 
@@ -107,52 +129,193 @@ router.put('/journalText/:name', fetchuser, async (req, res) => {
     }
 });
 
+// router.put('/journalImgAndPdf/:name', fetchuser, upload.fields([{ name: 'journalImg' }, { name: 'journalPdf' }]), async (req, res) => {
+    
+//     console.log(req.files['journalImg']);
+    
+//     // res.json("ABHAY");
+//     const { name } = req.params; 
+   
+//     let journalImg2 = [];
+//     let journalPdf2 = [];
+//     // console.log(req); 
 
-router.put('/journalImgAndPdf/:name', upload.fields([{ name: 'journalImg' }, { name: 'journalPdf' }]), fetchuser, async (req, res) => {
-    const { name } = req.params;
-    let journalImg2 = [];
-    let journalPdf2 = [];
-    console.log(req.files['journalImg']);
-    console.log(req.files['journalPdf']);
-    if (req.files && req.files['journalImg']) {
-        // Iterate over each uploaded image
-        for (const file of req.files['journalImg']) {
-            journalImg2.push({name : file.originalname});
-            console.log(file);
-        }
-    }else{
-        console.log("no file");
-    }
+//     if (req.files['journalImg']) {
+//         for (const file of req.files['journalImg']) {
+//             console.log("here");
+//             // Push each file object into journalImg2 array
+//             try {
+//                 journalImg2 = req.files['journalImg'].map(file => ({ name: `https://cdgi-journal.onrender.com/${file.originalname.split(" ").join("_")}` }));
+//                 // console.log("done");
+                
+//             } catch (error) {
+//                 // console.log(hehe);
+//             }
+//             // console.log(file);
+//         }
+//     } else {
+//         console.log("no file");
+//     }
+//     if (req.files['journalPdf']) {
+//         for (const file of req.files['journalPdf']) {
+//             // Push each file object into journalPdf2 array
+//             journalPdf2 = req.files['journalPdf'].map(file => ({ name: `https://cdgi-journal.onrender.com/${file.originalname.split(" ").join("_")}` }));
+//         }
+//         // console.log("lala");
+//         console.log(journalPdf2);
+//     } else {
+//         console.log("no pdf");
+//     } 
 
-    if (req.files && req.files['journalPdf']) {
-        // Iterate over each uploaded PDF
-        for (const file of req.files['journalPdf']) {
-            journalPdf2.push({name : file.originalname});
-            console.log(file);
-        }
-    }else{
-        console.log("no pdf");  
-    }
+//     try {
+//         const journal = await JournalModel.findOneAndUpdate({ journalName: name }, {
+//             $set: {
+//                 journalImg: journalImg2,
+//                 journalPdf: journalPdf2,
+//                 imgOrPdfUdatedAt: Date.now()
+//             }
+//         },{new : true});
+// // console.log("now here");
+//         if (!journal) {
+//             return res.status(404).send({ message: "Journal entry not found" });
+//         }
+
+//         res.status(200).send({ message: "Journal entry updated successfully" });
+//     } catch (error) {
+//         res.status(500).send({ message: "Error updating journal entry" });
+//     }
+
+//     // res.status(200).json("name");
+// });
+
+
+// Route for updating journal images
+
+router.put('/journalImg/:id', fetchuser, upload.single('journalImg'), async (req, res) => {
+    const { id } = req.params;
 
     try {
-        const journal = await JournalModel.findOneAndUpdate({ journalName: name }, {
-            $set: {
-                journalImg: journalImg2,
-                journalPdf: journalPdf2,
-                imgOrPdfUdatedAt: Date.now
-            }
-        });
+        // Check if journalImg file was uploaded
+        if (!req.file) {
+            return res.status(400).send({ message: "No image file provided" });
+        }
 
+        // Get the image URL
+        const imageUrl = `https://cdgi-journal.onrender.com/${req.file.originalname.split(" ").join("_")}`;
+
+        // Update the journal entry by _id and set the new image data
+        const journal = await JournalModel.findOneAndUpdate(
+            { "journalImg._id": id },
+            {
+                $set: {
+                    "journalImg.$.name": imageUrl,
+                    imgUdatedAt: Date.now()
+                }
+            },
+            { new: true }
+        );
+
+        // If journal entry is not found, return a 404 response
         if (!journal) {
             return res.status(404).send({ message: "Journal entry not found" });
         }
 
-        res.status(200).send({ message: "Journal entry updated successfully" });
+        // If successfully updated, send a success response
+        res.status(200).send({ message: "Journal image updated successfully" });
     } catch (error) {
-        res.status(500).send({ message: "Error updating journal entry" });
+        // If an error occurs during the update process, send a 500 response
+        console.error("Error updating journal image:", error);
+        res.status(500).send({ message: "Error updating journal image" });
     }
 });
 
+// Route for updating journal PDFs
+router.put('/journalPdf/:id', fetchuser, upload.single('journalPdf'), async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        // Check if journalPdf file was uploaded
+        if (!req.file) {
+            return res.status(400).send({ message: "No PDF file provided" });
+        }
+
+        // Get the PDF URL
+        const pdfUrl = `https://cdgi-journal.onrender.com/${req.file.originalname.split(" ").join("_")}`;
+
+        // Update the journal entry by _id and set the new PDF data
+        const journal = await JournalModel.findOneAndUpdate(
+            { "journalPdf._id": id },
+            {
+                $set: {
+                    "journalPdf.$.name": pdfUrl,
+                    pdfUdatedAt: Date.now()
+                }
+            },
+            { new: true }
+        );
+
+        // If journal entry is not found, return a 404 response
+        if (!journal) {
+            return res.status(404).send({ message: "Journal entry not found" });
+        }
+
+        // If successfully updated, send a success response
+        res.status(200).send({ message: "Journal PDF updated successfully" });
+    } catch (error) {
+        // If an error occurs during the update process, send a 500 response
+        console.error("Error updating journal PDF:", error);
+        res.status(500).send({ message: "Error updating journal PDF" });
+    }
+});
+
+
+
+// router.put('/journalImgAndPdf/:name', upload.single('t'), async (req, res) => {
+//     const { name } = req.params; 
+   
+//     // let journalImg2 = [];
+//     // let journalPdf2 = [];
+//     console.log(req); 
+
+//     // if (req.files['journalImg']) {
+//     //     for (const file of req.files['journalImg']) {
+//     //         // Push each file object into journalImg2 array
+//     //         journalImg2.push({ name: file.originalname });
+//     //         console.log(file);
+//     //     }
+//     // } else {
+//     //     console.log("no file");
+//     // }
+//     // if (req.files['journalPdf']) {
+//     //     for (const file of req.files['journalPdf']) {
+//     //         // Push each file object into journalPdf2 array
+//     //         journalPdf2.push({ name: file.originalname });
+//     //         console.log(file);
+//     //     }
+//     // } else {
+//     //     console.log("no pdf");
+//     // }
+
+//     // try {
+//     //     const journal = await JournalModel.findOneAndUpdate({ journalName: name }, {
+//     //         $set: {
+//     //             journalImg: journalImg2,
+//     //             journalPdf: journalPdf2,
+//     //             imgOrPdfUdatedAt: Date.now()
+//     //         }
+//     //     });
+
+//     //     if (!journal) {
+//     //         return res.status(404).send({ message: "Journal entry not found" });
+//     //     }
+
+//     //     res.status(200).send({ message: "Journal entry updated successfully" });
+//     // } catch (error) {
+//     //     res.status(500).send({ message: "Error updating journal entry" });
+//     // }
+
+//     res.status(200).json("name");
+// });
 
 // DELETE route to delete specific field by entering the name and itemType
 // router.delete('/:name', fetchuser, async (req, res) => {
@@ -222,7 +385,7 @@ router.delete('/:name', fetchuser, async (req, res) => {
 // DELETE route to delete specific image using the index 
 
 router.delete('/journalImg/:name/:imageIndex', fetchuser, async (req, res) => {
-    const { name, imageIndex} = req.params;
+    const { name, imageIndex } = req.params;
 
     try {
         const journal = await JournalModel.findOne({ journalName: name });
@@ -233,9 +396,9 @@ router.delete('/journalImg/:name/:imageIndex', fetchuser, async (req, res) => {
 
         // Remove the image at the specified index
         if (imageIndex !== undefined && imageIndex !== null) {
-            journal.journalImg.splice((imageIndex-1), 1);
+            journal.journalImg.splice((imageIndex - 1), 1);
         }
-        
+
         await journal.save();
 
         res.status(200).send({ message: "Image deleted successfully" });
@@ -258,9 +421,9 @@ router.delete('/journalPdf/:name/:pdfIndex', fetchuser, async (req, res) => {
 
         // Remove the PDF at the specified index
         if (pdfIndex !== undefined && pdfIndex !== null) {
-            journal.journalPdf.splice((pdfIndex-1), 1);
+            journal.journalPdf.splice((pdfIndex - 1), 1);
         }
-        
+
         await journal.save();
 
         res.status(200).send({ message: "PDF deleted successfully" });
@@ -272,7 +435,7 @@ router.delete('/journalPdf/:name/:pdfIndex', fetchuser, async (req, res) => {
 
 // DELETE route to delete the text
 router.delete('/journalText/:name', fetchuser, async (req, res) => {
-    const { name} = req.params;
+    const { name } = req.params;
 
     try {
         const journal = await JournalModel.findOne({ journalName: name });
@@ -282,7 +445,7 @@ router.delete('/journalText/:name', fetchuser, async (req, res) => {
         }
 
         journal.journalText = '';
-        
+
         await journal.save();
 
         res.status(200).send({ message: "Text deleted successfully" });

@@ -4,11 +4,12 @@ const journalSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'UserModel', required: true },
     journalName: { type: String, require: true, unique: true },
     journalText: { type: String },
-    journalImg: [{ name: String }],
+    journalImg: [{ name: String }] ,
     journalPdf: [{ name: String }],
     achievedAt: { type: Date, default: Date.now },
-    textUpdatedAt: {type: Date},
-    imgOrPdfUdatedAt: {type: Date}
+    textUpdatedAt: {type: Date, default: Date.now},
+    imgUdatedAt: {type: Date, default: Date.now},
+    pdfUdatedAt: {type: Date, default: Date.now}
 });
 
 const JournalModel = mongoose.model("Journal", journalSchema);
