@@ -8,7 +8,13 @@ const app = express();
 
 app.use(express.json());
 setupDB();  
-app.use(cors());
+const corsOptions = {
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Only allow GET and POST requests
+  // allowedHeaders: ['Content-Type', 'Authorization'], // Only allow specific headers
+};
+
+app.use(cors(corsOptions));
 
 app.use("/auth", login_router);
 app.use("/journal", journal_router);
