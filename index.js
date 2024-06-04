@@ -9,8 +9,8 @@ const app = express();
 app.use(express.json());
 setupDB();  
 const corsOptions = {
-  origin: 'http://localhost:5173',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Only allow GET and POST requests
+  origin: '*', // Allow access from any origin
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Only allow GET, POST, PUT, DELETE requests
   // allowedHeaders: ['Content-Type', 'Authorization'], // Only allow specific headers
 };
 

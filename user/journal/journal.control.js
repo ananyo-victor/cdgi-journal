@@ -21,58 +21,40 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 //POST route to upload data into database
-router.post('/upload', fetchuser, upload.fields([{ name: 'journalImg' }, { name: 'journalPdf' }]), async (req, res) => {
-    try { 
+router.post('/upload', fetchuser, upload.fields([{ name: 'journalImg', maxCount: 1 }, { name: 'journalPdf', maxCount: 1 }]), async (req, res) => {
+    try {
         const { journalName, journalText } = req.body;
-        let journalImgArray = [];
-        let journalPdfArray = [];
+        const files = req.files;
 
-        // Check if journalName already exists in the database
-        const existingJournal = await JournalModel.findOne({ journalName });
+        const userId = req.user.id;
 
-        if (existingJournal) {
-            // If journalName exists, update journalText, journalImg, and journalPdf
-            existingJournal.journalText = journalText;
+        // Check if an image file was uploaded
+        const imageUrl = files['journalImg'] ? `https://cdgi-journal.onrender.com/${files['journalImg'][0].originalname}` : null;
 
-            if (req.files['journalImg']) {
-                const imgFiles = req.files['journalImg'].map(file => ({ name: `https://cdgi-journal.onrender.com/${file.originalname.split(" ").join("_")}` }));
-                existingJournal.journalImg = existingJournal.journalImg.concat(imgFiles);
-            }
+        // Check if a PDF file was uploaded
+        const pdfUrl = files['journalPdf'] ? `https://cdgi-journal.onrender.com/${files['journalPdf'][0].originalname}` : null;
 
-            if (req.files['journalPdf']) {
-                const pdfFiles = req.files['journalPdf'].map(file => ({ name: `https://cdgi-journal.onrender.com/${file.originalname.split(" ").join("_")}` }));
-                existingJournal.journalPdf = existingJournal.journalPdf.concat(pdfFiles);
-            }
-
-            await existingJournal.save();
-            res.status(200).send({ message: "Journal entry updated successfully" });
-        } else {
-            // If journalName does not exist, create a new entry
-            if (req.files['journalImg']) {
-                journalImgArray = req.files['journalImg'].map(file => ({ name: `https://cdgi-journal.onrender.com/${file.originalname.split(" ").join("_")}` }));
-            }
-
-            if (req.files['journalPdf']) {
-                journalPdfArray = req.files['journalPdf'].map(file => ({ name: `https://cdgi-journal.onrender.com/${file.originalname.split(" ").join("_")}` }));
-            }
-
-            const userId = req.user.id;
-            const newJournal = new JournalModel({
-                userId,
-                journalName,
-                journalText,
-                journalImg: journalImgArray,
-                journalPdf: journalPdfArray
-            });
-
-            await newJournal.save();
-            res.status(201).send({ message: "Journal entry created successfully" });
+        // If neither image nor PDF was uploaded, return an error
+        if (!imageUrl && !pdfUrl) {
+            return res.status(400).send({ message: "No image or PDF uploaded" });
         }
+
+        const newJournal = new JournalModel({
+            userId,
+            journalName,
+            journalText,
+            journalImg: imageUrl,
+            journalPdf: pdfUrl
+        });
+
+        await newJournal.save();
+        res.status(201).send({ message: "Journal entry created successfully" });
     } catch (error) {
-        console.error("Error creating or updating journal entry:", error);
-        res.status(500).send({ message: "Error creating or updating journal entry" });
+        console.error("Error uploading journal entry:", error);
+        res.status(500).send({ message: "Error uploading journal entry" });
     }
 });
+
 
 
 //GET route to access all the data
