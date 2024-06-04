@@ -186,11 +186,11 @@ router.put('/journalImg/:id', fetchuser, upload.single('journalImg'), async (req
         const imageUrl = `https://cdgi-journal.onrender.com/${req.file.originalname.split(" ").join("_")}`;
 
         // Update the journal entry by _id and set the new image data
-        const journal = await JournalModel.findOneAndUpdate(
-            { "journalImg._id": id },
+        const journal = await JournalModel.findByIdAndUpdate(
+            id,
             {
                 $set: {
-                    "journalImg.$.name": imageUrl,
+                    journalImg: imageUrl,
                     imgUdatedAt: Date.now()
                 }
             },
@@ -210,6 +210,7 @@ router.put('/journalImg/:id', fetchuser, upload.single('journalImg'), async (req
         res.status(500).send({ message: "Error updating journal image" });
     }
 });
+
 
 // Route for updating journal PDFs
 router.put('/journalPdf/:id', fetchuser, upload.single('journalPdf'), async (req, res) => {
